@@ -1,0 +1,48 @@
+### ==============================
+### 测试1：测试服务是否启动（GET）
+### ==============================
+GET http://localhost:3001/api/pull
+
+### ==============================
+### 测试2：注册（POST）
+### ==============================
+POST http://localhost:3001/api/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "123456"
+}
+
+### ==============================
+### 测试3：登录（POST）
+### ==============================
+POST http://localhost:3001/api/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "123456"
+}
+
+### ==============================
+### 测试4：同步数据到云端（POST）
+### 把下面的 Bearer 后面替换成你登录得到的 token
+### ==============================
+POST http://localhost:3001/api/sync
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3NTk4OTM5MywiZXhwIjoxNzc2NTk0MTkzfQ.P7uyhem1H22WjCWwFqR3-7jlUWhxAW3fnLaClLGYGTc
+
+{
+  "recordId": "test001",
+  "target": "测试闪光精灵",
+  "captures": [1,2,3],
+  "quickButtons": [1,2]
+}
+
+### ==============================
+### 测试5：从云端拉取数据（GET）
+### 同样替换 token
+### ==============================
+GET http://localhost:3001/api/pull
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3NTk4OTM5MywiZXhwIjoxNzc2NTk0MTkzfQ.P7uyhem1H22WjCWwFqR3-7jlUWhxAW3fnLaClLGYGTc

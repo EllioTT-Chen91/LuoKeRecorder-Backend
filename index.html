@@ -1,0 +1,1685 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>洛克王国刷异色精灵记录器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --primary: #3b82f6;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #1e293b;
+        --muted: #64748b;
+        --border: #e2e8f0;
+      }
+      html.dark {
+        --primary: #60a5fa;
+        --success: #34d399;
+        --danger: #f87171;
+        --warning: #fbbf24;
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --border: #334155;
+      }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        transition: all 0.3s;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      .card {
+        background-color: var(--card);
+        border-radius: 16px;
+        box-shadow: 0 4px 6 -1 rgba(0, 0, 0, 0.1);
+      }
+      .btn-danger {
+        background-color: var(--danger);
+        color: white;
+      }
+      .btn-warning {
+        background-color: var(--warning);
+        color: white;
+      }
+      .btn-primary {
+        background-color: var(--primary);
+        color: white;
+      }
+      .badge-yes {
+        background-color: #fde68a;
+        color: #92400e;
+      }
+      .badge-no {
+        background-color: #bbf7d0;
+        color: #065f46;
+      }
+      .badge-shiny {
+        background-color: #4ade80;
+        color: white;
+      }
+      .toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 24px;
+        background: #1e293b;
+        color: white;
+        border-radius: 8px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 16px;
+        text-align: center;
+      }
+      th {
+        font-weight: 500;
+        color: var(--muted);
+        background: #f8fafc;
+      }
+      html.dark th {
+        background: #1e293b;
+      }
+    </style>
+  </head>
+  <body class="p-4 md:p-8">
+    <div id="app" class="max-w-7xl mx-auto">
+      <!-- 顶部栏 -->
+      <div
+        class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4"
+      >
+        <h1 class="text-3xl font-bold">洛克王国刷异色精灵记录器</h1>
+        <div class="flex gap-3">
+          <button
+            id="new-record-btn"
+            class="btn-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+          >
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>新建记录
+          </button>
+          <button
+            id="export-all-btn"
+            class="btn-warning px-6 py-3 rounded-lg flex items-center gap-2"
+          >
+            <i data-lucide="download" class="w-5 h-5"></i>导出全部
+          </button>
+          <button
+            id="import-all-btn"
+            class="btn-primary px-6 py-3 rounded-lg flex items-center gap-2"
+          >
+            <i data-lucide="upload" class="w-5 h-5"></i>导入记录
+          </button>
+          <!-- 云端同步按钮 -->
+          <!-- 云端同步按钮（美化版 - 圆形头像下拉菜单） -->
+          <div id="user-auth" class="flex items-center gap-3 relative">
+            <button
+              id="login-btn"
+              class="btn-primary px-6 py-3 rounded-lg font-medium"
+            >
+              登录
+            </button>
+
+            <!-- 登录后显示：圆形头像 + 下拉菜单 -->
+            <div id="user-info" class="hidden relative">
+              <!-- 圆形用户按钮 -->
+              <button
+                id="user-menu-btn"
+                class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold hover:brightness-110 transition"
+              >
+                <i data-lucide="user" class="w-5 h-5"></i>
+              </button>
+
+              <!-- 下拉菜单（默认隐藏） -->
+              <div
+                id="user-dropdown"
+                class="hidden absolute right-0 mt-2 w-60 rounded-lg shadow-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 z-50"
+              >
+                <div
+                  class="text-sm text-gray-500 dark:text-gray-300 mb-2 border-b pb-2"
+                >
+                  欢迎，<span
+                    id="username-display"
+                    class="font-semibold text-blue-500"
+                  ></span>
+                </div>
+
+                <button
+                  id="sync-to-cloud-btn"
+                  class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded flex items-center gap-2"
+                >
+                  <i data-lucide="cloud-upload" class="w-4 h-4"></i>同步到云端
+                </button>
+
+                <button
+                  id="pull-from-cloud-btn"
+                  class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded flex items-center gap-2"
+                >
+                  <i data-lucide="cloud-download" class="w-4 h-4"></i>从云端拉取
+                </button>
+
+                <div class="border-t my-1"></div>
+
+                <button
+                  id="logout-btn"
+                  class="w-full text-left px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded flex items-center gap-2"
+                >
+                  <i data-lucide="log-out" class="w-4 h-4"></i>退出登录
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            id="toggle-dark-mode"
+            class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+            <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+          </button>
+        </div>
+      </div>
+
+      <input
+        type="file"
+        id="import-file"
+        accept=".json"
+        style="display: none"
+      />
+      <!-- 新增：当前记录导入文件选择器 -->
+      <input
+        type="file"
+        id="import-current-file"
+        accept=".json"
+        style="display: none"
+      />
+
+      <!-- 欢迎页 -->
+      <div id="welcome-screen" class="block">
+        <div class="card p-6 mb-6">
+          <h2 class="text-xl font-semibold mb-4">历史记录</h2>
+          <div id="records-list" class="space-y-3">
+            <p class="text-center py-8 text-gray-500">暂无历史记录</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新建记录弹窗 -->
+      <div
+        id="new-record-modal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
+      >
+        <div class="card p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">新建记录</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">目标异色精灵</label>
+              <input
+                type="text"
+                id="target-spirit"
+                class="w-full px-4 py-2 border rounded-lg bg-transparent"
+              />
+            </div>
+            <div class="flex justify-end gap-3">
+              <button id="cancel-new-btn" class="px-4 py-2 border rounded-lg">
+                取消
+              </button>
+              <button
+                id="start-record-btn"
+                class="btn-primary px-4 py-2 rounded-lg"
+              >
+                开始记录
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 记录详情 -->
+      <div id="record-screen" class="hidden">
+        <div
+          class="card p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4"
+        >
+          <div>
+            <h2 class="text-2xl font-bold" id="current-target"></h2>
+          </div>
+          <button id="back-to-welcome-btn" class="px-4 py-2 border rounded-lg">
+            返回列表
+          </button>
+        </div>
+
+        <div class="card p-6 mb-6">
+          <h3 class="text-3xl font-bold mb-6 flex items-center gap-3">
+            <span
+              class="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center"
+            >
+              <i data-lucide="timer" class="w-6 h-6 text-white"></i> </span
+            >快速统计
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+            <div>
+              <p class="text-xl text-gray-500">总捕获:</p>
+              <p id="total-captures" class="text-4xl font-bold text-blue-500">
+                0
+              </p>
+            </div>
+            <div>
+              <p class="text-xl text-gray-500">异色:</p>
+              <p id="shiny-count" class="text-4xl font-bold text-green-500">
+                0
+              </p>
+            </div>
+            <div>
+              <p class="text-xl text-gray-500">污染:</p>
+              <p
+                id="corrupted-count"
+                class="text-4xl font-bold text-yellow-500"
+              >
+                0
+              </p>
+            </div>
+            <div>
+              <p class="text-xl text-gray-500">平均球数:</p>
+              <p id="avg-balls" class="text-4xl font-bold text-green-500">0</p>
+            </div>
+            <div>
+              <p class="text-xl text-gray-500">污染率:</p>
+              <p id="corruption-rate" class="text-4xl font-bold text-red-500">
+                0%
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="card p-6">
+            <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-6 h-6 text-blue-500"></i
+              >精灵捕获统计
+            </h3>
+            <div class="h-80"><canvas id="spirit-chart"></canvas></div>
+          </div>
+
+          <!-- 球使用总数统计 + 平均球数对比 合并版 -->
+          <div class="card p-6">
+            <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-5 h-5 text-yellow-500"></i
+              >球使用统计
+            </h3>
+            <div class="h-64 mb-6"><canvas id="ball-chart"></canvas></div>
+            <h3 class="text-xl font-semibold mb-3 text-purple-500">
+              平均球数对比
+            </h3>
+            <div class="h-52"><canvas id="avg-ball-chart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card p-6 mb-6">
+          <div
+            class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3"
+          >
+            <h3 class="text-2xl font-bold flex items-center gap-2">
+              <i data-lucide="list" class="w-6 h-6 text-blue-500"></i>捕获记录
+            </h3>
+            <div class="flex gap-3">
+              <button
+                id="clear-records-btn"
+                class="btn-danger px-6 py-3 rounded-lg flex items-center gap-2"
+              >
+                <i data-lucide="trash-2" class="w-5 h-5"></i>清空
+              </button>
+              <button
+                id="export-data-btn"
+                class="btn-warning px-6 py-3 rounded-lg flex items-center gap-2"
+              >
+                <i data-lucide="download" class="w-5 h-5"></i>导出
+              </button>
+              <!-- 新增：当前记录导入按钮 -->
+              <button
+                id="import-current-btn"
+                class="btn-primary px-6 py-3 rounded-lg flex items-center gap-2"
+              >
+                <i data-lucide="upload" class="w-5 h-5"></i>导入
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>精灵</th>
+                  <th>球类型</th>
+                  <th>球数</th>
+                  <th>异色</th>
+                  <th>污染</th>
+                  <th>时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="capture-table-body">
+                <tr>
+                  <td colspan="7" class="text-center py-8 text-gray-500">
+                    暂无记录
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div
+            class="flex flex-col md:flex-row justify-between items-center mt-4 gap-3"
+          >
+            <p id="page-info" class="text-gray-500">显示 0-0 条，共 0 条</p>
+            <div class="flex gap-3">
+              <button
+                id="prev-page-btn"
+                class="btn-warning px-6 py-3 rounded-lg disabled:opacity-50"
+                disabled
+              >
+                上一页
+              </button>
+              <button
+                id="next-page-btn"
+                class="btn-warning px-6 py-3 rounded-lg disabled:opacity-50"
+                disabled
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自定义快速记录 -->
+        <div class="card p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">自定义快速记录</h3>
+            <button
+              id="add-quick-action-btn"
+              class="btn-primary px-3 py-1 rounded-lg"
+            >
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div
+            id="quick-actions"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
+          ></div>
+        </div>
+      </div>
+
+      <!-- 编辑弹窗 -->
+      <div
+        id="edit-modal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
+      >
+        <div class="card p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">编辑记录</h3>
+          <form id="edit-form" class="space-y-4">
+            <input type="hidden" id="edit-index" />
+            <div>
+              <label class="block text-sm mb-2">精灵</label
+              ><input
+                type="text"
+                id="edit-name"
+                required
+                class="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm mb-2">球类型</label
+                ><select
+                  id="edit-ball-type"
+                  class="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option>普通球</option>
+                  <option>高级球</option>
+                  <option>国王球</option>
+                  <option>棱镜球</option>
+                  <option>属性球</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm mb-2">球数</label
+                ><input
+                  type="number"
+                  id="edit-balls"
+                  min="1"
+                  required
+                  class="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">异色</label
+              ><select
+                id="edit-shiny"
+                class="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="false">否</option>
+                <option value="true">是</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">污染</label
+              ><select
+                id="edit-corrupted"
+                class="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="false">否</option>
+                <option value="true">是</option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                id="cancel-edit-btn"
+                class="px-4 py-2 border rounded-lg"
+              >
+                取消
+              </button>
+              <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                保存
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 新增快速按钮弹窗（下拉选择版） -->
+      <div
+        id="add-quick-modal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
+      >
+        <div class="card p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">添加快速按钮</h3>
+          <form id="add-quick-form" class="space-y-4">
+            <div>
+              <label class="block text-sm mb-2">精灵</label
+              ><input
+                type="text"
+                id="add-quick-name"
+                required
+                class="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm mb-2">球类型</label
+                ><select
+                  id="add-quick-ball-type"
+                  class="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option>普通球</option>
+                  <option>高级球</option>
+                  <option>国王球</option>
+                  <option>棱镜球</option>
+                  <option>属性球</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm mb-2">球数</label
+                ><input
+                  type="number"
+                  id="add-quick-balls"
+                  min="1"
+                  value="1"
+                  required
+                  class="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">异色</label
+              ><select
+                id="add-quick-shiny"
+                class="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="false">否</option>
+                <option value="true">是</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">污染</label
+              ><select
+                id="add-quick-corrupted"
+                class="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="false">否</option>
+                <option value="true">是</option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                id="cancel-add-quick-btn"
+                class="px-4 py-2 border rounded-lg"
+              >
+                取消
+              </button>
+              <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                保存
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 编辑快速按钮弹窗 -->
+      <div
+        id="edit-quick-modal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
+      >
+        <div class="card p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">编辑快速按钮</h3>
+          <form id="edit-quick-form" class="space-y-4">
+            <input type="hidden" id="edit-quick-index" />
+            <div>
+              <label class="block text-sm mb-2">精灵</label
+              ><input
+                type="text"
+                id="edit-quick-name"
+                required
+                class="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm mb-2">球类型</label
+                ><select
+                  id="edit-quick-ball-type"
+                  class="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option>普通球</option>
+                  <option>高级球</option>
+                  <option>国王球</option>
+                  <option>棱镜球</option>
+                  <option>属性球</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm mb-2">球数</label
+                ><input
+                  type="number"
+                  id="edit-quick-balls"
+                  min="1"
+                  required
+                  class="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">异色</label
+              ><select
+                id="edit-quick-shiny"
+                class="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="false">否</option>
+                <option value="true">是</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">污染</label
+              ><select
+                id="edit-quick-corrupted"
+                class="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="false">否</option>
+                <option value="true">是</option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                id="cancel-quick-edit-btn"
+                class="px-4 py-2 border rounded-lg"
+              >
+                取消
+              </button>
+              <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                保存
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="toast" class="toast"></div>
+      <!-- ====================== 云端登录弹窗 ====================== -->
+      <div
+        id="login-modal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
+      >
+        <div class="card p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">用户登录</h3>
+          <form id="login-form" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">用户名</label>
+              <input
+                type="text"
+                id="login-username"
+                class="w-full px-4 py-2 border rounded-lg bg-transparent"
+                required
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">密码</label>
+              <input
+                type="password"
+                id="login-password"
+                class="w-full px-4 py-2 border rounded-lg bg-transparent"
+                required
+              />
+            </div>
+            <div class="flex justify-between items-center">
+              <button
+                type="button"
+                id="to-register-btn"
+                class="text-blue-500 text-sm"
+              >
+                没有账号？去注册
+              </button>
+              <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                登录
+              </button>
+            </div>
+          </form>
+          <button
+            id="cancel-login-btn"
+            class="mt-4 px-4 py-2 border rounded-lg w-full"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="register-modal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"
+      >
+        <div class="card p-6 w-full max-w-md">
+          <h3 class="text-xl font-bold mb-4">用户注册</h3>
+          <form id="register-form" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">用户名</label>
+              <input
+                type="text"
+                id="register-username"
+                class="w-full px-4 py-2 border rounded-lg bg-transparent"
+                required
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">密码</label>
+              <input
+                type="password"
+                id="register-password"
+                class="w-full px-4 py-2 border rounded-lg bg-transparent"
+                required
+              />
+            </div>
+            <div class="flex justify-between items-center">
+              <button
+                type="button"
+                id="to-login-btn"
+                class="text-blue-500 text-sm"
+              >
+                已有账号？去登录
+              </button>
+              <button type="submit" class="btn-primary px-4 py-2 rounded-lg">
+                注册
+              </button>
+            </div>
+          </form>
+          <button
+            id="cancel-register-btn"
+            class="mt-4 px-4 py-2 border rounded-lg w-full"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      lucide.createIcons();
+      const STORAGE_KEY = "locke_shiny_hunter_records";
+      let allRecords = [],
+        currentRecord = null,
+        currentPage = 1;
+      const itemsPerPage = 10;
+      let spiritChart = null,
+        ballChart = null,
+        avgBallChart = null;
+
+      const welcomeScreen = document.getElementById("welcome-screen");
+      const recordScreen = document.getElementById("record-screen");
+      const newRecordModal = document.getElementById("new-record-modal");
+      const editModal = document.getElementById("edit-modal");
+      const addQuickModal = document.getElementById("add-quick-modal");
+      const editQuickModal = document.getElementById("edit-quick-modal");
+      const recordsListEl = document.getElementById("records-list");
+      const captureTableBody = document.getElementById("capture-table-body");
+      const quickActionsEl = document.getElementById("quick-actions");
+      const importFile = document.getElementById("import-file");
+      // 新增：当前记录导入文件选择器
+      const importCurrentFile = document.getElementById("import-current-file");
+
+      function showToast(m) {
+        const t = document.getElementById("toast");
+        t.textContent = m;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 3000);
+      }
+
+      // --- 本地存储 ---
+      function loadAllRecords() {
+        const s = localStorage.getItem(STORAGE_KEY);
+        allRecords = s ? JSON.parse(s) : [];
+        renderRecordsList();
+      }
+      function saveAllRecords() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allRecords));
+      }
+
+      // --- 列表 ---
+      function renderRecordsList() {
+        if (allRecords.length === 0) {
+          recordsListEl.innerHTML =
+            '<p class="text-center py-8 text-gray-500">暂无历史记录</p>';
+          return;
+        }
+        recordsListEl.innerHTML = "";
+        [...allRecords]
+          .sort(
+            (a, b) =>
+              (b.lastModified || b.createdAt) - (a.lastModified || a.createdAt),
+          )
+          .forEach((r) => {
+            const total = r.captures.length;
+            const corrupted = r.captures.filter((c) => c.corrupted).length;
+            const shiny = r.captures.filter((c) => c.shiny).length;
+            const el = document.createElement("div");
+            el.className =
+              "p-4 border rounded-lg flex flex-col md:flex-row justify-between items-center gap-3";
+            el.innerHTML = `
+            <div><h4 class="font-semibold">${r.target}</h4></div>
+            <div class="text-right"><p>总${total} | 异色${shiny} | 污染${corrupted}</p></div>
+            <div class="flex gap-2">
+                <button class="continue-btn btn-primary px-4 py-2 rounded-lg" data-id="${r.id}">继续</button>
+                <button class="del-record-btn btn-danger px-4 py-2 rounded-lg" data-id="${r.id}">删除</button>
+            </div>
+        `;
+            recordsListEl.appendChild(el);
+          });
+        document.querySelectorAll(".continue-btn").forEach(
+          (b) =>
+            (b.onclick = () => {
+              currentRecord = allRecords.find((r) => r.id === b.dataset.id);
+              currentPage = 1;
+              welcomeScreen.classList.add("hidden");
+              recordScreen.classList.remove("hidden");
+              updateUI();
+            }),
+        );
+        document.querySelectorAll(".del-record-btn").forEach(
+          (b) =>
+            (b.onclick = () => {
+              if (!confirm("确定删除？")) return;
+              allRecords = allRecords.filter((r) => r.id !== b.dataset.id);
+              saveAllRecords();
+              renderRecordsList();
+              showToast("删除成功");
+            }),
+        );
+      }
+
+      // --- 表格 ---
+      function renderCaptureTable() {
+        if (!currentRecord || currentRecord.captures.length === 0) {
+          captureTableBody.innerHTML =
+            '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无记录</td></tr>';
+          document.getElementById("page-info").textContent = "0 条";
+          document.getElementById("prev-page-btn").disabled = true;
+          document.getElementById("next-page-btn").disabled = true;
+          return;
+        }
+        const total = currentRecord.captures.length;
+        const pages = Math.ceil(total / itemsPerPage);
+        if (currentPage > pages) currentPage = 1;
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const list = currentRecord.captures.slice().reverse().slice(start, end);
+        captureTableBody.innerHTML = "";
+        list.forEach((it, i) => {
+          const real = total - 1 - i;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${it.name}</td>
+            <td>${it.ballType}</td>
+            <td>${it.balls}</td>
+            <td><span class="px-2 py-1 rounded-full text-xs ${it.shiny ? "badge-shiny" : "badge-no"}">${it.shiny ? "是" : "否"}</span></td>
+            <td><span class="px-2 py-1 rounded-full text-xs ${it.corrupted ? "badge-yes" : "badge-no"}">${it.corrupted ? "是" : "否"}</span></td>
+            <td>${new Date(it.timestamp).toLocaleString()}</td>
+            <td class="flex gap-2 justify-center">
+                <button class="edit-btn text-blue-600" data-idx="${real}">编辑</button>
+                <button class="del-capture-btn text-red-600" data-idx="${real}">删除</button>
+            </td>
+        `;
+          captureTableBody.appendChild(tr);
+        });
+        document.getElementById("page-info").textContent =
+          `显示 ${start + 1}-${Math.min(end, total)} 条，共 ${total} 条`;
+        document.getElementById("prev-page-btn").disabled = currentPage === 1;
+        document.getElementById("next-page-btn").disabled =
+          currentPage === pages;
+
+        document
+          .querySelectorAll(".edit-btn")
+          .forEach((b) => (b.onclick = () => openEdit(+b.dataset.idx)));
+        document.querySelectorAll(".del-capture-btn").forEach(
+          (b) =>
+            (b.onclick = () => {
+              if (!confirm("确定删除？")) return;
+              currentRecord.captures.splice(+b.dataset.idx, 1);
+              currentRecord.lastModified = Date.now();
+              saveAllRecords();
+              updateUI();
+              showToast("删除成功");
+            }),
+        );
+      }
+
+      // --- 统计 & 图表 ---
+      function updateStats() {
+        if (!currentRecord) return;
+        const total = currentRecord.captures.length;
+        const shiny = currentRecord.captures.filter((c) => c.shiny).length;
+        const corrupted = currentRecord.captures.filter(
+          (c) => c.corrupted,
+        ).length;
+        const totalBalls = currentRecord.captures.reduce(
+          (s, c) => s + c.balls,
+          0,
+        );
+        const avg = total ? (totalBalls / total).toFixed(1) : 0;
+        const rate = total ? ((corrupted / total) * 100).toFixed(1) : 0;
+
+        document.getElementById("total-captures").textContent = total;
+        document.getElementById("shiny-count").textContent = shiny;
+        document.getElementById("corrupted-count").textContent = corrupted;
+        document.getElementById("avg-balls").textContent = avg;
+        document.getElementById("corruption-rate").textContent = rate + "%";
+        updateCharts();
+      }
+
+      function updateCharts() {
+        if (!currentRecord) return;
+
+        // 精灵统计
+        const spirit = {};
+        currentRecord.captures.forEach(
+          (c) => (spirit[c.name] = (spirit[c.name] || 0) + 1),
+        );
+        if (spiritChart) spiritChart.destroy();
+        spiritChart = new Chart(document.getElementById("spirit-chart"), {
+          type: "bar",
+          data: {
+            labels: Object.keys(spirit),
+            datasets: [{ data: Object.values(spirit), background: "#93c5fd" }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, stepSize: 1 } },
+          },
+        });
+
+        // 球总数统计（饼状图 - 已修复颜色）
+        const ballSum = {};
+        currentRecord.captures.forEach((c) => {
+          const t = c.ballType || "普通球";
+          ballSum[t] = (ballSum[t] || 0) + c.balls;
+        });
+        if (ballChart) ballChart.destroy();
+
+        // 固定颜色配置
+        const colors = {
+          普通球: "#86efac", // 浅绿
+          高级球: "#a78bfa", // 浅紫
+          国王球: "#fbbf24", // 黄色
+          棱镜球: "#6ee7b7", // 青色
+          属性球: "#93c5fd", // 蓝色
+        };
+
+        // 👇 强制按球类型取颜色，修复饼图不生效问题
+        const colorList = Object.keys(ballSum).map(
+          (key) => colors[key] || "#cccccc",
+        );
+
+        ballChart = new Chart(document.getElementById("ball-chart"), {
+          type: "pie",
+          data: {
+            labels: Object.keys(ballSum),
+            datasets: [
+              {
+                data: Object.values(ballSum),
+                backgroundColor: colorList, // 👈 修复点
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: "right" } },
+          },
+        });
+
+        // 平均球数对比图
+        const ballStats = {};
+        currentRecord.captures.forEach((c) => {
+          const t = c.ballType || "普通球";
+          if (!ballStats[t]) {
+            ballStats[t] = { count: 0, total: 0 };
+          }
+          ballStats[t].count++;
+          ballStats[t].total += c.balls;
+        });
+
+        const avgLabels = [];
+        const avgValues = [];
+        const avgColors = [];
+
+        for (const t in ballStats) {
+          const data = ballStats[t];
+          const avg = (data.total / data.count).toFixed(1);
+          avgLabels.push(t);
+          avgValues.push(parseFloat(avg));
+          avgColors.push(colors[t] || "#c4b5fd");
+        }
+
+        if (avgBallChart) avgBallChart.destroy();
+        avgBallChart = new Chart(document.getElementById("avg-ball-chart"), {
+          type: "bar",
+          data: {
+            labels: avgLabels,
+            datasets: [
+              {
+                label: "平均球数",
+                data: avgValues,
+                backgroundColor: avgColors,
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const idx = context.dataIndex;
+                    const type = avgLabels[idx];
+                    const stat = ballStats[type];
+                    return `平均：${avgValues[idx]} 球 (共${stat.count}次，总${stat.total}球)`;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 1 },
+              },
+            },
+          },
+        });
+      }
+
+      // ==============================================
+      // 核心修复1：导入全部记录改为合并逻辑（不再覆盖）
+      // ==============================================
+      document.getElementById("import-all-btn").onclick = () => {
+        importFile.click();
+      };
+
+      importFile.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const importedRecords = JSON.parse(text);
+
+          // 验证导入数据格式
+          if (!Array.isArray(importedRecords)) {
+            showToast("导入失败：数据格式错误");
+            return;
+          }
+
+          // 合并逻辑：按ID去重，新记录追加，旧记录覆盖（保留原有不存在的记录）
+          const existingIds = new Set(allRecords.map((r) => r.id));
+          const mergedRecords = [...allRecords]; // 保留原有所有记录
+
+          importedRecords.forEach((imported) => {
+            if (!imported.id) {
+              // 为无ID的导入记录生成唯一ID
+              imported.id =
+                Date.now() + Math.random().toString(36).substr(2, 9);
+              imported.createdAt = imported.createdAt || Date.now();
+            }
+
+            if (existingIds.has(imported.id)) {
+              // 覆盖已有ID的记录
+              const index = mergedRecords.findIndex(
+                (r) => r.id === imported.id,
+              );
+              mergedRecords[index] = imported;
+            } else {
+              // 新增无ID的记录
+              mergedRecords.push(imported);
+            }
+          });
+
+          // 保存合并后的数据
+          allRecords = mergedRecords;
+          saveAllRecords();
+          loadAllRecords(); // 重新加载列表
+          showToast(`导入成功：共合并 ${importedRecords.length} 条记录`);
+        } catch (err) {
+          console.error("导入失败", err);
+          showToast("导入失败：文件格式错误或内容异常");
+        } finally {
+          // 清空文件选择器
+          importFile.value = "";
+        }
+      };
+
+      // ==============================================
+      // 核心新增2：当前记录的导入功能
+      // ==============================================
+      document.getElementById("import-current-btn").onclick = () => {
+        if (!currentRecord) {
+          showToast("请先选择要导入的目标记录");
+          return;
+        }
+        importCurrentFile.click();
+      };
+
+      importCurrentFile.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !currentRecord) return;
+
+        try {
+          const text = await file.text();
+          const importedData = JSON.parse(text);
+
+          // 支持两种导入格式：单条记录（含captures） 或 直接是captures数组
+          let importedCaptures = [];
+          if (Array.isArray(importedData)) {
+            // 格式1：直接是捕获记录数组
+            importedCaptures = importedData;
+          } else if (
+            importedData.captures &&
+            Array.isArray(importedData.captures)
+          ) {
+            // 格式2：完整的记录对象（提取captures）
+            importedCaptures = importedData.captures;
+          } else {
+            showToast("导入失败：数据格式不支持");
+            return;
+          }
+
+          // 验证捕获记录格式
+          const validCaptures = importedCaptures.filter(
+            (c) =>
+              c.name &&
+              c.ballType &&
+              typeof c.balls === "number" &&
+              c.timestamp,
+          );
+
+          if (validCaptures.length === 0) {
+            showToast("导入失败：无有效捕获记录");
+            return;
+          }
+
+          // 合并到当前记录的captures中
+          currentRecord.captures = [
+            ...currentRecord.captures,
+            ...validCaptures,
+          ];
+          currentRecord.lastModified = Date.now();
+          saveAllRecords();
+          updateUI(); // 刷新表格和统计
+
+          showToast(`导入成功：新增 ${validCaptures.length} 条捕获记录`);
+        } catch (err) {
+          console.error("当前记录导入失败", err);
+          showToast("导入失败：文件格式错误或内容异常");
+        } finally {
+          importCurrentFile.value = "";
+        }
+      };
+
+      // ==============================================
+      // 快速按钮 - 弹窗选择版
+      // ==============================================
+      document.getElementById("add-quick-action-btn").onclick = () => {
+        addQuickModal.classList.remove("hidden");
+        document.getElementById("add-quick-form").reset();
+      };
+
+      document.getElementById("cancel-add-quick-btn").onclick = () => {
+        addQuickModal.classList.add("hidden");
+      };
+
+      document.getElementById("add-quick-form").onsubmit = (e) => {
+        e.preventDefault();
+        const data = {
+          name: document.getElementById("add-quick-name").value.trim(),
+          balls: +document.getElementById("add-quick-balls").value,
+          ballType: document.getElementById("add-quick-ball-type").value,
+          shiny: document.getElementById("add-quick-shiny").value === "true",
+          corrupted:
+            document.getElementById("add-quick-corrupted").value === "true",
+        };
+        if (!currentRecord.quickButtons) currentRecord.quickButtons = [];
+        currentRecord.quickButtons.push(data);
+        currentRecord.lastModified = Date.now();
+        saveAllRecords();
+        renderQuickActions();
+        addQuickModal.classList.add("hidden");
+        showToast("添加成功！");
+      };
+
+      // 打开编辑快速按钮
+      function openEditQuick(idx) {
+        const item = currentRecord.quickButtons[idx];
+        document.getElementById("edit-quick-index").value = idx;
+        document.getElementById("edit-quick-name").value = item.name;
+        document.getElementById("edit-quick-balls").value = item.balls;
+        document.getElementById("edit-quick-ball-type").value = item.ballType;
+        document.getElementById("edit-quick-shiny").value =
+          (item.shiny ?? false) + "";
+        document.getElementById("edit-quick-corrupted").value =
+          (item.corrupted ?? false) + "";
+        editQuickModal.classList.remove("hidden");
+      }
+
+      // 渲染快速按钮
+      function renderQuickActions() {
+        quickActionsEl.innerHTML = "";
+        if (!currentRecord?.quickButtons) return;
+
+        currentRecord.quickButtons.forEach((it, idx) => {
+          const isShiny = it.shiny ?? false;
+          const isCorrupted = it.corrupted ?? false;
+
+          let btnClass = "p-3 rounded-lg font-medium relative";
+          if (isShiny) {
+            btnClass += " bg-green-500 text-white";
+          } else if (isCorrupted) {
+            btnClass += " bg-yellow-400 text-white";
+          } else {
+            btnClass += " bg-blue-500 text-white";
+          }
+
+          const btn = document.createElement("button");
+          btn.className = btnClass;
+          btn.innerHTML = `
+            <div class="text-left">
+              <div class="font-bold">${it.name}</div>
+              <div class="text-xs">${it.ballType} × ${it.balls}</div>
+            </div>
+            <div class="absolute top-2 right-2 flex gap-1">
+              <button class="edit-quick-btn w-5 h-5 rounded-full bg-black/20 flex items-center justify-center" data-idx="${idx}">
+                <i data-lucide="edit-2" class="w-3 h-3"></i>
+              </button>
+              <button class="del-quick-btn w-5 h-5 rounded-full bg-black/20 flex items-center justify-center" data-idx="${idx}">
+                <i data-lucide="trash-2" class="w-3 h-3"></i>
+              </button>
+            </div>
+          `;
+
+          // 快速按钮点击事件（添加记录）
+          btn.querySelector("div.text-left").onclick = () => {
+            const newCapture = {
+              name: it.name,
+              ballType: it.ballType,
+              balls: it.balls,
+              shiny: isShiny,
+              corrupted: isCorrupted,
+              timestamp: Date.now(),
+            };
+            currentRecord.captures.push(newCapture);
+            currentRecord.lastModified = Date.now();
+            saveAllRecords();
+            updateUI();
+            showToast(`已记录：${it.name} (${it.ballType}×${it.balls})`);
+          };
+
+          // 编辑快速按钮
+          btn.querySelector(".edit-quick-btn").onclick = (e) => {
+            e.stopPropagation();
+            openEditQuick(idx);
+          };
+
+          // 删除快速按钮
+          btn.querySelector(".del-quick-btn").onclick = (e) => {
+            e.stopPropagation();
+            if (!confirm("确定删除该快速按钮？")) return;
+            currentRecord.quickButtons.splice(idx, 1);
+            currentRecord.lastModified = Date.now();
+            saveAllRecords();
+            renderQuickActions();
+            showToast("删除成功");
+          };
+
+          quickActionsEl.appendChild(btn);
+        });
+
+        // 重新渲染图标
+        lucide.createIcons();
+      }
+
+      // 编辑快速按钮提交
+      document.getElementById("edit-quick-form").onsubmit = (e) => {
+        e.preventDefault();
+        const idx = +document.getElementById("edit-quick-index").value;
+        const data = {
+          name: document.getElementById("edit-quick-name").value.trim(),
+          balls: +document.getElementById("edit-quick-balls").value,
+          ballType: document.getElementById("edit-quick-ball-type").value,
+          shiny: document.getElementById("edit-quick-shiny").value === "true",
+          corrupted:
+            document.getElementById("edit-quick-corrupted").value === "true",
+        };
+        currentRecord.quickButtons[idx] = data;
+        currentRecord.lastModified = Date.now();
+        saveAllRecords();
+        renderQuickActions();
+        editQuickModal.classList.add("hidden");
+        showToast("修改成功！");
+      };
+
+      document.getElementById("cancel-quick-edit-btn").onclick = () => {
+        editQuickModal.classList.add("hidden");
+      };
+
+      // ==============================================
+      // 其他原有功能
+      // ==============================================
+      // 新建记录
+      document.getElementById("new-record-btn").onclick = () => {
+        newRecordModal.classList.remove("hidden");
+        document.getElementById("target-spirit").value = "";
+      };
+
+      document.getElementById("cancel-new-btn").onclick = () => {
+        newRecordModal.classList.add("hidden");
+      };
+
+      document.getElementById("start-record-btn").onclick = () => {
+        const target = document.getElementById("target-spirit").value.trim();
+        if (!target) {
+          showToast("请输入目标精灵名称");
+          return;
+        }
+
+        const newRecord = {
+          id: Date.now() + Math.random().toString(36).substr(2, 9),
+          target,
+          createdAt: Date.now(),
+          lastModified: Date.now(),
+          captures: [],
+          quickButtons: [],
+        };
+
+        allRecords.push(newRecord);
+        saveAllRecords();
+        newRecordModal.classList.add("hidden");
+
+        // 切换到新记录页面
+        currentRecord = newRecord;
+        currentPage = 1;
+        welcomeScreen.classList.add("hidden");
+        recordScreen.classList.remove("hidden");
+        updateUI();
+        showToast(`开始记录：${target}`);
+      };
+
+      // 返回列表
+      document.getElementById("back-to-welcome-btn").onclick = () => {
+        recordScreen.classList.add("hidden");
+        welcomeScreen.classList.remove("hidden");
+        currentRecord = null;
+      };
+
+      // 导出全部
+      document.getElementById("export-all-btn").onclick = () => {
+        if (allRecords.length === 0) {
+          showToast("暂无记录可导出");
+          return;
+        }
+
+        const blob = new Blob([JSON.stringify(allRecords, null, 2)], {
+          type: "application/json",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `洛克王国记录_${new Date().toLocaleDateString()}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast("导出成功");
+      };
+
+      // 导出当前记录
+      document.getElementById("export-data-btn").onclick = () => {
+        if (!currentRecord || currentRecord.captures.length === 0) {
+          showToast("暂无记录可导出");
+          return;
+        }
+
+        const blob = new Blob([JSON.stringify(currentRecord, null, 2)], {
+          type: "application/json",
+        });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `洛克王国-${currentRecord.target}_${new Date().toLocaleDateString()}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast("导出成功");
+      };
+
+      // 清空当前记录
+      document.getElementById("clear-records-btn").onclick = () => {
+        if (!currentRecord || !confirm("确定清空所有捕获记录？")) return;
+        currentRecord.captures = [];
+        currentRecord.lastModified = Date.now();
+        saveAllRecords();
+        updateUI();
+        showToast("已清空捕获记录");
+      };
+
+      // 分页
+      document.getElementById("prev-page-btn").onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderCaptureTable();
+        }
+      };
+
+      document.getElementById("next-page-btn").onclick = () => {
+        const total = currentRecord.captures.length;
+        const pages = Math.ceil(total / itemsPerPage);
+        if (currentPage < pages) {
+          currentPage++;
+          renderCaptureTable();
+        }
+      };
+
+      // 编辑记录
+      function openEdit(idx) {
+        const item = currentRecord.captures[idx];
+        document.getElementById("edit-index").value = idx;
+        document.getElementById("edit-name").value = item.name;
+        document.getElementById("edit-ball-type").value = item.ballType;
+        document.getElementById("edit-balls").value = item.balls;
+        document.getElementById("edit-shiny").value = item.shiny + "";
+        document.getElementById("edit-corrupted").value = item.corrupted + "";
+        editModal.classList.remove("hidden");
+      }
+
+      document.getElementById("cancel-edit-btn").onclick = () => {
+        editModal.classList.add("hidden");
+      };
+
+      document.getElementById("edit-form").onsubmit = (e) => {
+        e.preventDefault();
+        const idx = +document.getElementById("edit-index").value;
+        currentRecord.captures[idx] = {
+          ...currentRecord.captures[idx],
+          name: document.getElementById("edit-name").value.trim(),
+          ballType: document.getElementById("edit-ball-type").value,
+          balls: +document.getElementById("edit-balls").value,
+          shiny: document.getElementById("edit-shiny").value === "true",
+          corrupted: document.getElementById("edit-corrupted").value === "true",
+        };
+        currentRecord.lastModified = Date.now();
+        saveAllRecords();
+        editModal.classList.add("hidden");
+        updateUI();
+        showToast("修改成功");
+      };
+
+      // 暗黑模式
+      document.getElementById("toggle-dark-mode").onclick = () => {
+        document.documentElement.classList.toggle("dark");
+        localStorage.setItem(
+          "dark-mode",
+          document.documentElement.classList.contains("dark"),
+        );
+      };
+
+      // 初始化暗黑模式
+      if (localStorage.getItem("dark-mode") === "true") {
+        document.documentElement.classList.add("dark");
+      }
+
+      // 更新UI
+      function updateUI() {
+        if (!currentRecord) return;
+        document.getElementById("current-target").textContent =
+          currentRecord.target;
+        renderCaptureTable();
+        updateStats();
+        renderQuickActions();
+      }
+
+      // 初始化
+      loadAllRecords();
+      // ====================== 云端同步功能 ======================
+      const API_BASE = "http://localhost:3001/api";
+      const TOKEN_KEY = "locke_token";
+      const USER_KEY = "locke_user";
+
+      const loginModal = document.getElementById("login-modal");
+      const registerModal = document.getElementById("register-modal");
+      const loginBtn = document.getElementById("login-btn");
+      const userInfo = document.getElementById("user-info");
+      const usernameDisplay = document.getElementById("username-display");
+
+      // 初始化登录状态
+      function initCloud() {
+        const t = localStorage.getItem(TOKEN_KEY);
+        const u = localStorage.getItem(USER_KEY);
+        if (t && u) {
+          loginBtn.classList.add("hidden");
+          userInfo.classList.remove("hidden");
+          usernameDisplay.textContent = JSON.parse(u).username;
+        }
+      }
+
+      // 打开登录
+      loginBtn.onclick = () => {
+        loginModal.classList.remove("hidden");
+      };
+
+      // 切换登录注册
+      document.getElementById("to-register-btn").onclick = () => {
+        loginModal.classList.add("hidden");
+        registerModal.classList.remove("hidden");
+      };
+      document.getElementById("to-login-btn").onclick = () => {
+        registerModal.classList.add("hidden");
+        loginModal.classList.remove("hidden");
+      };
+
+      // 取消
+      document.getElementById("cancel-login-btn").onclick = () =>
+        loginModal.classList.add("hidden");
+      document.getElementById("cancel-register-btn").onclick = () =>
+        registerModal.classList.add("hidden");
+
+      // 注册
+      document.getElementById("register-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const u = document.getElementById("register-username").value;
+        const p = document.getElementById("register-password").value;
+        try {
+          const r = await fetch(API_BASE + "/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: u, password: p }),
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error);
+          showToast("注册成功");
+          registerModal.classList.add("hidden");
+          loginModal.classList.remove("hidden");
+        } catch (e) {
+          showToast(e.message);
+        }
+      };
+
+      // 登录
+      document.getElementById("login-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const u = document.getElementById("login-username").value;
+        const p = document.getElementById("login-password").value;
+        try {
+          const r = await fetch(API_BASE + "/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: u, password: p }),
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error);
+          localStorage.setItem(TOKEN_KEY, d.token);
+          localStorage.setItem(USER_KEY, JSON.stringify(d.user));
+          loginBtn.classList.add("hidden");
+          userInfo.classList.remove("hidden");
+          usernameDisplay.textContent = d.user.username;
+          loginModal.classList.add("hidden");
+          showToast("登录成功");
+        } catch (e) {
+          showToast(e.message);
+        }
+      };
+
+      // 退出登录
+      document.getElementById("logout-btn").onclick = () => {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        loginBtn.classList.remove("hidden");
+        userInfo.classList.add("hidden");
+        showToast("已退出登录");
+      };
+
+      // 同步到云端
+      document.getElementById("sync-to-cloud-btn").onclick = async () => {
+        const t = localStorage.getItem(TOKEN_KEY);
+        if (!t) return showToast("请先登录");
+        if (allRecords.length === 0) return showToast("无本地记录");
+
+        try {
+          for (const rec of allRecords) {
+            await fetch(API_BASE + "/sync", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + t,
+              },
+              body: JSON.stringify({
+                recordId: rec.id,
+                target: rec.target,
+                captures: rec.captures,
+                quickButtons: rec.quickButtons,
+              }),
+            });
+          }
+          showToast("✅ 全部同步到云端成功");
+        } catch (e) {
+          showToast("同步失败");
+        }
+      };
+
+      // 从云端拉取
+      document.getElementById("pull-from-cloud-btn").onclick = async () => {
+        const t = localStorage.getItem(TOKEN_KEY);
+        if (!t) return showToast("请先登录");
+
+        try {
+          const r = await fetch(API_BASE + "/pull", {
+            headers: { Authorization: "Bearer " + t },
+          });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error);
+
+          const cloud = d.records;
+          const localIds = new Set(allRecords.map((x) => x.id));
+          const merged = [...allRecords];
+
+          cloud.forEach((c) => {
+            const item = {
+              id: c.record_id,
+              target: c.target,
+              captures: c.captures,
+              quickButtons: c.quick_buttons || [],
+              createdAt: new Date(c.created_at).getTime(),
+              lastModified: new Date(c.last_modified).getTime(),
+            };
+            if (localIds.has(item.id)) {
+              const i = merged.findIndex((x) => x.id === item.id);
+              merged[i] = item;
+            } else {
+              merged.push(item);
+            }
+          });
+
+          allRecords = merged;
+          saveAllRecords();
+          renderRecordsList();
+          showToast("✅ 从云端拉取成功");
+        } catch (e) {
+          showToast("拉取失败");
+        }
+      };
+      // ====================== 下拉菜单控制 ======================
+      const userMenuBtn = document.getElementById("user-menu-btn");
+      const userDropdown = document.getElementById("user-dropdown");
+
+      userMenuBtn.onclick = (e) => {
+        e.stopPropagation();
+        userDropdown.classList.toggle("hidden");
+      };
+
+      document.addEventListener("click", () => {
+        userDropdown.classList.add("hidden");
+      });
+
+      userDropdown.onclick = (e) => e.stopPropagation();
+      // 启动云端模块
+      initCloud();
+    </script>
+  </body>
+</html>
