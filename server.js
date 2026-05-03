@@ -126,13 +126,17 @@ app.get("/api/hunts", authenticateToken, async (req, res) => {
 app.post("/api/hunts", authenticateToken, async (req, res) => {
   const hunt = req.body;
   try {
-    // 使用 ON CONFLICT ( PostgreSQL 特有语法)
-    // 注意：这要求你的 roco_hunt_records 表在 (user_id, record_id) 上有唯一约束或主键
+    // 使用不依赖 ON CONFLICT 唯一约束的 upsert 模式
     await pool.query(
-      `INSERT INTO roco_hunt_records (user_id, record_id, target, captures, last_modified) 
-       VALUES ($1, $2, $3, $4, NOW())
-       ON CONFLICT (user_id, record_id) 
-       DO UPDATE SET captures = EXCLUDED.captures, target = EXCLUDED.target, last_modified = NOW()`,
+      `WITH updated AS (
+         UPDATE roco_hunt_records
+         SET captures = $4, target = $3, last_modified = NOW()
+         WHERE user_id = $1 AND record_id = $2
+         RETURNING *
+       )
+       INSERT INTO roco_hunt_records (user_id, record_id, target, captures, last_modified)
+       SELECT $1, $2, $3, $4, NOW()
+       WHERE NOT EXISTS (SELECT 1 FROM updated);`,
       [req.user.id, hunt.id, hunt.petName, hunt],
     );
     res.sendStatus(201);
