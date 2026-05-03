@@ -7,19 +7,18 @@ const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const cors = require("cors");
 
-app.use(cors());
-app.use(express.json());
-// 解决 CORS 401 的关键配置
+// 1. 解决 CORS 问题：放在最前面
 app.use(
   cors({
-    origin: true, // 允许所有来源，或指定你的 frontend 域名
+    origin: true, // 允许所有来源，或者填你的前端域名如 "https://your-frontend.vercel.app"
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
+app.use(express.json());
 
 // 连接 Neon PostgreSQL
 const pool = new Pool({
@@ -31,76 +30,27 @@ const pool = new Pool({
 function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "未登录" });
+
+  // 如果是 OPTIONS 预检请求，直接放行（由 cors 中间件处理）
+  if (req.method === "OPTIONS") return next();
+
+  if (!token) {
+    console.log("Auth Fail: No token provided");
+    return res.status(401).json({ error: "未登录" });
+  }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: "登录已过期" });
+    if (err) {
+      console.log("Auth Fail: Token invalid or expired");
+      return res.status(403).json({ error: "登录已过期" });
+    }
     req.user = user;
     next();
   });
 }
 
-// --- 将以下路由添加到你的 server.js 中 ---
+// --- 路由 ---
 
-// 获取当前用户的所有捕获记录
-app.get("/api/hunts", authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT * FROM roco_hunt_records WHERE user_id = $1 ORDER BY last_modified DESC",
-      [req.user.id],
-    );
-    const hunts = result.rows.map((row) => ({
-      ...row.captures,
-      id: row.record_id,
-    }));
-    res.json(hunts);
-  } catch (err) {
-    res.status(500).json({ error: "拉取记录失败" });
-  }
-});
-
-// 新增记录
-app.post("/api/hunts", authenticateToken, async (req, res) => {
-  const hunt = req.body;
-  try {
-    await pool.query(
-      "INSERT INTO roco_hunt_records (user_id, record_id, target, captures) VALUES ($1, $2, $3, $4)",
-      [req.user.id, hunt.id, hunt.petName, hunt],
-    );
-    res.sendStatus(201);
-  } catch (err) {
-    res.status(500).json({ error: "同步失败" });
-  }
-});
-
-// 更新记录
-app.put("/api/hunts/:id", authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const hunt = req.body;
-  try {
-    await pool.query(
-      "UPDATE roco_hunt_records SET captures = $1, target = $2, last_modified = NOW() WHERE user_id = $3 AND record_id = $4",
-      [hunt, hunt.petName, req.user.id, id],
-    );
-    res.sendStatus(200);
-  } catch (err) {
-    res.status(500).json({ error: "更新失败" });
-  }
-});
-
-// 删除记录
-app.delete("/api/hunts/:id", authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  try {
-    await pool.query(
-      "DELETE FROM roco_hunt_records WHERE user_id = $1 AND record_id = $2",
-      [req.user.id, id],
-    );
-    res.sendStatus(200);
-  } catch (err) {
-    res.status(500).json({ error: "删除失败" });
-  }
-});
 // 1. 注册
 app.post("/api/register", async (req, res) => {
   try {
@@ -118,6 +68,7 @@ app.post("/api/register", async (req, res) => {
     );
     res.json({ message: "注册成功", user: result.rows[0] });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "服务器错误" });
   }
 });
@@ -147,69 +98,84 @@ app.post("/api/login", async (req, res) => {
       user: { id: user.id, username: user.username },
     });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "服务器错误" });
   }
 });
 
-// 3. 同步数据到云端
-app.post("/api/sync", authenticateToken, async (req, res) => {
+// 3. 获取所有狩猎记录 (统一使用新表 roco_hunt_records)
+app.get("/api/hunts", authenticateToken, async (req, res) => {
   try {
-    const { recordId, target, captures, quickButtons } = req.body;
-    const userId = req.user.id;
-
-    console.log("同步数据 =>", { userId, recordId, target });
-
-    const exists = await pool.query(
-      "SELECT * FROM locke_records WHERE user_id=$1 AND record_id=$2",
-      [userId, recordId],
-    );
-
-    if (exists.rows.length > 0) {
-      await pool.query(
-        "UPDATE locke_records SET target=$1, captures=$2, quick_buttons=$3, last_modified=NOW() WHERE user_id=$4 AND record_id=$5",
-        [
-          target,
-          JSON.stringify(captures),
-          JSON.stringify(quickButtons || []),
-          userId,
-          recordId,
-        ],
-      );
-      return res.json({ message: "更新成功" });
-    }
-
-    await pool.query(
-      "INSERT INTO locke_records (user_id, record_id, target, captures, quick_buttons) VALUES ($1,$2,$3,$4,$5)",
-      [
-        userId,
-        recordId,
-        target,
-        JSON.stringify(captures),
-        JSON.stringify(quickButtons || []),
-      ],
-    );
-    res.json({ message: "同步成功" });
-  } catch (e) {
-    console.log("错误详情：", e);
-    res.status(500).json({ error: "同步失败" });
-  }
-});
-
-// 4. 从云端拉取数据
-app.get("/api/pull", authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
     const result = await pool.query(
-      "SELECT record_id, target, captures, quick_buttons, created_at, last_modified FROM locke_records WHERE user_id=$1",
-      [userId],
+      "SELECT * FROM roco_hunt_records WHERE user_id = $1 ORDER BY last_modified DESC",
+      [req.user.id],
     );
-    res.json({ records: result.rows });
-  } catch (e) {
-    res.status(500).json({ error: "拉取失败" });
+    const hunts = result.rows.map((row) => ({
+      ...row.captures,
+      id: row.record_id,
+    }));
+    res.json(hunts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "拉取记录失败" });
   }
 });
 
-// 启动服务
-app.listen(PORT, () => {
-  console.log("✅ 服务运行在 http://localhost:3001");
+// 4. 新增记录
+app.post("/api/hunts", authenticateToken, async (req, res) => {
+  const hunt = req.body;
+  try {
+    await pool.query(
+      "INSERT INTO roco_hunt_records (user_id, record_id, target, captures) VALUES ($1, $2, $3, $4)",
+      [req.user.id, hunt.id, hunt.petName, hunt],
+    );
+    res.sendStatus(201);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "数据同步失败" });
+  }
 });
+
+// 5. 更新记录
+app.put("/api/hunts/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const hunt = req.body;
+  try {
+    await pool.query(
+      "UPDATE roco_hunt_records SET captures = $1, target = $2, last_modified = NOW() WHERE user_id = $3 AND record_id = $4",
+      [hunt, hunt.petName, req.user.id, id],
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "更新失败" });
+  }
+});
+
+// 6. 删除记录
+app.delete("/api/hunts/:id", authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query(
+      "DELETE FROM roco_hunt_records WHERE user_id = $1 AND record_id = $2",
+      [req.user.id, id],
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "删除失败" });
+  }
+});
+
+// 健康检查接口，方便调试
+app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+// 本地启动 (如果是部署到 Vercel，它会寻找导出的 app 而不是 listen 运行)
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`✅ 服务运行在 http://localhost:${PORT}`);
+  });
+}
+
+// 导出 app 供 Vercel 使用 (重要)
+module.exports = app;
