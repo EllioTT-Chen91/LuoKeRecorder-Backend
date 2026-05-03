@@ -15,6 +15,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    preflightContinue: false,
   }),
 );
 
@@ -121,18 +122,23 @@ app.get("/api/hunts", authenticateToken, async (req, res) => {
   }
 });
 
-// 4. 新增记录
+// 修改后的 POST /api/hunts
 app.post("/api/hunts", authenticateToken, async (req, res) => {
   const hunt = req.body;
   try {
+    // 使用 ON CONFLICT ( PostgreSQL 特有语法)
+    // 注意：这要求你的 roco_hunt_records 表在 (user_id, record_id) 上有唯一约束或主键
     await pool.query(
-      "INSERT INTO roco_hunt_records (user_id, record_id, target, captures) VALUES ($1, $2, $3, $4)",
+      `INSERT INTO roco_hunt_records (user_id, record_id, target, captures, last_modified) 
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (user_id, record_id) 
+       DO UPDATE SET captures = EXCLUDED.captures, target = EXCLUDED.target, last_modified = NOW()`,
       [req.user.id, hunt.id, hunt.petName, hunt],
     );
     res.sendStatus(201);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "数据同步失败" });
+    res.status(500).json({ error: "同步失败" });
   }
 });
 
