@@ -138,6 +138,68 @@ app.get("/api/pull", authenticateToken, async (req, res) => {
   }
 });
 
+// --- Roco Hunt 专属数据接口 ---
+
+// 1. 获取所有记录
+app.get("/api/hunts", authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM roco_hunt_records WHERE user_id = $1 ORDER BY last_modified DESC",
+      [req.user.id],
+    );
+    const hunts = result.rows.map((row) => ({
+      ...row.captures,
+      id: row.record_id,
+    }));
+    res.json(hunts);
+  } catch (err) {
+    res.status(500).json({ error: "拉取记录失败" });
+  }
+});
+
+// 2. 新增记录
+app.post("/api/hunts", authenticateToken, async (req, res) => {
+  try {
+    const hunt = req.body;
+    await pool.query(
+      "INSERT INTO roco_hunt_records (user_id, record_id, target, captures) VALUES ($1, $2, $3, $4)",
+      [req.user.id, hunt.id, hunt.petName, hunt],
+    );
+    res.sendStatus(201);
+  } catch (err) {
+    res.status(500).json({ error: "保存失败" });
+  }
+});
+
+// 3. 更新记录
+app.put("/api/hunts/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hunt = req.body;
+    await pool.query(
+      "UPDATE roco_hunt_records SET captures = $1, target = $2, last_modified = NOW() WHERE user_id = $3 AND record_id = $4",
+      [hunt, hunt.petName, req.user.id, id],
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    res.status(500).json({ error: "更新失败" });
+  }
+});
+
+// 4. 删除记录
+app.delete("/api/hunts/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      "DELETE FROM roco_hunt_records WHERE user_id = $1 AND record_id = $2",
+      [req.user.id, id],
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    res.status(500).json({ error: "删除失败" });
+  }
+});
+
 // 启动服务
 app.listen(PORT, () => {
   console.log("✅ 服务运行在 http://localhost:3001");

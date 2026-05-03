@@ -31,7 +31,7 @@ Content-Type: application/json
 ### ==============================
 POST http://localhost:3001/api/sync
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3NTk4OTM5MywiZXhwIjoxNzc2NTk0MTkzfQ.P7uyhem1H22WjCWwFqR3-7jlUWhxAW3fnLaClLGYGTc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3Nzc3NTY1NywiZXhwIjoxNzc4MzgwNDU3fQ.0iWIoSh9xBolhZB903EpYD9K-ftbgKmaQS2w0LBBtGM
 
 {
   "recordId": "test001",
@@ -45,4 +45,28 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hb
 ### 同样替换 token
 ### ==============================
 GET http://localhost:3001/api/pull
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3NTk4OTM5MywiZXhwIjoxNzc2NTk0MTkzfQ.P7uyhem1H22WjCWwFqR3-7jlUWhxAW3fnLaClLGYGTc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3Nzc3NTY1NywiZXhwIjoxNzc4MzgwNDU3fQ.0iWIoSh9xBolhZB903EpYD9K-ftbgKmaQS2w0LBBtGM
+
+### ==============================
+### 测试6：测试Roco Hunt 专属数据接口（GET）
+### 同样替换 token
+### ==============================
+GET http://localhost:3001/api/hunts
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3Nzc3NTY1NywiZXhwIjoxNzc4MzgwNDU3fQ.0iWIoSh9xBolhZB903EpYD9K-ftbgKmaQS2w0LBBtGM
+
+### ==============================
+### 测试7：测试Roco Hunt 专属数据接口（POST）
+### 同样替换 token
+### ==============================
+POST http://localhost:3001/api/hunts
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc3Nzc3NTY1NywiZXhwIjoxNzc4MzgwNDU3fQ.0iWIoSh9xBolhZB903EpYD9K-ftbgKmaQS2w0LBBtGM
+
+{
+  "huntId": "hunt001",
+  "name": "测试猎物",
+  "description": "这是一个测试猎物",
+  "location": "测试地点",
+  "reward": 100,
+  "status": "active"
+}
